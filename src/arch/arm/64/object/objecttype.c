@@ -385,14 +385,26 @@ cap_t Arch_createObject(object_t t, void *regionBase, word_t userSize, bool_t de
                                 (word_t)regionBase + MASK(pageBitsForSize(ARMSmallPage)),
                                 addrFromPPtr(regionBase));
         }
-        return cap_frame_cap_new(
-                   asidInvalid,           /* capFMappedASID */
-                   (word_t)regionBase,    /* capFBasePtr */
-                   ARMSmallPage,          /* capFSize */
-                   0,                     /* capFMappedAddress */
-                   VMReadWrite,           /* capFVMRights */
-                   !!deviceMemory         /* capFIsDevice */
-               );
+        {
+            /* DEBUG: Log device frame creation for MMIO investigation */
+            cap_t new_cap = cap_frame_cap_new(
+                       asidInvalid,           /* capFMappedASID */
+                       (word_t)regionBase,    /* capFBasePtr */
+                       ARMSmallPage,          /* capFSize */
+                       0,                     /* capFMappedAddress */
+                       VMReadWrite,           /* capFVMRights */
+                       !!deviceMemory         /* capFIsDevice */
+                   );
+            if (deviceMemory && pptr_to_paddr(regionBase) == 0xa003000) {
+                printf("[MMIO_DEBUG] Arch_createObject creating device frame:\n");
+                printf("  paddr=0x%lx, VMRights=%lu (should be 2=VMReadWrite)\n",
+                       (word_t)pptr_to_paddr(regionBase),
+                       (word_t)cap_frame_cap_get_capFVMRights(new_cap));
+                printf("  isDevice=%lu, returning cap to caller\n",
+                       (word_t)cap_frame_cap_get_capFIsDevice(new_cap));
+            }
+            return new_cap;
+        }
 
     case seL4_ARM_LargePageObject:
         if (deviceMemory) {

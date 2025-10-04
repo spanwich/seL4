@@ -25,8 +25,8 @@ typedef struct arch_tcb {
 
 enum vm_rights {
     VMKernelOnly = 0,
-    VMReadWrite = 1,
-    VMReadOnly = 3
+    VMReadOnly = 1,     /* S2AP = 01: Read-only */
+    VMReadWrite = 3     /* S2AP = 11: Read/Write */
 };
 typedef word_t vm_rights_t;
 

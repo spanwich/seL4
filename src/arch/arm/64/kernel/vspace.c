@@ -700,13 +700,21 @@ static pte_t makeUserPagePTE(paddr_t paddr, vm_rights_t vm_rights, vm_attributes
 
     /* Inner-shareable if SMP enabled, otherwise unshared (ignored for devices) */
     word_t shareable = cacheable ? SMP_TERNARY(SMP_SHARE, 0) : 0;
+    word_t ap_bits = APFromVMRights(vm_rights);
+
+    /* DEBUG: Show PTE parameters */
+    printf("[MMIO_DEBUG] makeUserPTE:\n");
+    printf("  vm_rights=%lu, cacheable=%lu, nonexecutable=%lu\n",
+           (word_t)vm_rights, (word_t)cacheable, (word_t)nonexecutable);
+    printf("  AP bits=%lu (S2AP: 0=NoAccess, 1=RO, 3=RW)\n", (word_t)ap_bits);
+    printf("  attridx=0x%lx (S2_DEVICE_nGnRnE=0, S2_NORMAL=1)\n", (word_t)attridx);
 
     if (page_size == ARMSmallPage) {
         return pte_pte_4k_page_new(nonexecutable, paddr, nG, 1 /* access flag */,
-                                   shareable, APFromVMRights(vm_rights), attridx);
+                                   shareable, ap_bits, attridx);
     } else {
         return pte_pte_page_new(nonexecutable, paddr, nG, 1 /* access flag */,
-                                shareable, APFromVMRights(vm_rights), attridx);
+                                shareable, ap_bits, attridx);
     }
 }
 
@@ -1528,8 +1536,26 @@ static exception_t decodeARMFrameInvocation(word_t invLabel, word_t length,
         vspaceRootCap = current_extra_caps.excaprefs[0]->cap;
 
         frameSize = cap_frame_cap_get_capFSize(cap);
-        vmRights = maskVMRights(cap_frame_cap_get_capFVMRights(cap),
-                                rightsFromWord(getSyscallArg(1, buffer)));
+
+        /* DEBUG: Trace permission flow for MMIO write investigation */
+        vm_rights_t cap_vm_rights = cap_frame_cap_get_capFVMRights(cap);
+        seL4_CapRights_t syscall_rights = rightsFromWord(getSyscallArg(1, buffer));
+        bool_t is_device = cap_frame_cap_get_capFIsDevice(cap);
+
+        printf("[MMIO_DEBUG] ARMPageMap called:\n");
+        printf("  vaddr=0x%lx, paddr=0x%lx\n", (word_t)vaddr, (word_t)pptr_to_paddr((void *)cap_frame_cap_get_capFBasePtr(cap)));
+        printf("  Frame cap VMRights=%lu (0=KernelOnly, 1=ReadOnly, 2=ReadWrite)\n", (word_t)cap_vm_rights);
+        printf("  Syscall rights mask: R=%llu W=%llu G=%llu\n",
+               (unsigned long long)seL4_CapRights_get_capAllowRead(syscall_rights),
+               (unsigned long long)seL4_CapRights_get_capAllowWrite(syscall_rights),
+               (unsigned long long)seL4_CapRights_get_capAllowGrant(syscall_rights));
+        printf("  Is Device Memory: %lu\n", (word_t)is_device);
+        printf("  VM Attributes: ExecuteNever=%lu\n", (word_t)vm_attributes_get_armExecuteNever(attributes));
+
+        vmRights = maskVMRights(cap_vm_rights, syscall_rights);
+
+        printf("  After maskVMRights: vmRights=%lu\n", (word_t)vmRights);
+        printf("  APFromVMRights will return: %lu (expected 3 for RW)\n", (word_t)APFromVMRights(vmRights));
 
         if (unlikely(!isValidNativeRoot(vspaceRootCap))) {
             current_syscall_error.type = seL4_InvalidCapability;
