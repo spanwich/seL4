@@ -1,0 +1,102 @@
+/*
+ * Copyright 2025, PhD Research Project
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ * Minimal seL4 device tree for Digi CCMP25-DVK (STM32MP255)
+ * Derived from Linux DTS on v6.6/stm/dey-5.0/maint branch:
+ *   - arch/arm64/boot/dts/st/stm32mp251.dtsi (SoC base)
+ *   - arch/arm64/boot/dts/st/stm32mp253.dtsi (dual-core)
+ *   - arch/arm64/boot/dts/digi/ccmp25.dtsi (SOM)
+ *   - arch/arm64/boot/dts/digi/ccmp25-dvk.dts (board)
+ *
+ * Hardware facts:
+ *   CPU: 2x Cortex-A35 (STM32MP255)
+ *   GIC: GICv2 (arm,cortex-a7-gic compatible)
+ *   DRAM: 1GB total, non-secure region 0x84000000-0xBA7FFFFF (~870MB)
+ *   UART: USART2 @ 0x400e0000 (console)
+ *   Timer: ARM generic timer @ 40 MHz
+ *   Boot: PSCI v1.0 via SMC, enters at NS-EL2
+ */
+
+/dts-v1/;
+
+/ {
+	compatible = "digi,ccmp25-dvk", "digi,ccmp25", "st,stm32mp255";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = "/serial@400e0000";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a35";
+			device_type = "cpu";
+			reg = <0x0>;
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			compatible = "arm,cortex-a35";
+			device_type = "cpu";
+			reg = <0x1>;
+			enable-method = "psci";
+		};
+	};
+
+	memory@84000000 {
+		device_type = "memory";
+		/* Non-secure DRAM: skip first 64MB (TFM + OP-TEE + CM33),
+		 * end before GPU reserved region @ 0xBA800000.
+		 * Total usable: ~870MB */
+		reg = <0x0 0x84000000 0x0 0x36800000>;
+	};
+
+	intc: interrupt-controller@4ac10000 {
+		compatible = "arm,cortex-a7-gic";
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		interrupt-parent = <&intc>;
+		reg = <0x0 0x4ac10000 0x0 0x1000>,  /* GICD */
+		      <0x0 0x4ac20000 0x0 0x2000>,  /* GICC */
+		      <0x0 0x4ac40000 0x0 0x2000>,  /* GICH */
+		      <0x0 0x4ac60000 0x0 0x2000>;  /* GICV */
+		interrupts = <1 9 0xf04>;  /* VGIC maintenance IRQ (PPI 25) */
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupt-parent = <&{/interrupt-controller@4ac10000}>;
+		interrupts = <1 13 0xf08>,  /* Secure phys */
+		             <1 14 0xf08>,  /* Non-secure phys */
+		             <1 11 0xf08>,  /* Virtual */
+		             <1 10 0xf08>;  /* Hypervisor */
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+
+	serial@400e0000 {
+		compatible = "st,stm32h7-uart";
+		reg = <0x0 0x400e0000 0x0 0x400>;
+	};
+
+	iwdg1: watchdog@44010000 {
+		compatible = "st,stm32mp1-iwdg";
+		reg = <0x0 0x44010000 0x0 0x400>;
+		status = "okay";
+	};
+
+	iwdg2: watchdog@44020000 {
+		compatible = "st,stm32mp1-iwdg";
+		reg = <0x0 0x44020000 0x0 0x400>;
+		status = "okay";
+	};
+};
