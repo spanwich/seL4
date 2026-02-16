@@ -87,16 +87,4 @@
 		compatible = "st,stm32h7-uart";
 		reg = <0x0 0x400e0000 0x0 0x400>;
 	};
-
-	iwdg1: watchdog@44010000 {
-		compatible = "st,stm32mp1-iwdg";
-		reg = <0x0 0x44010000 0x0 0x400>;
-		status = "okay";
-	};
-
-	iwdg2: watchdog@44020000 {
-		compatible = "st,stm32mp1-iwdg";
-		reg = <0x0 0x44020000 0x0 0x400>;
-		status = "okay";
-	};
 };
