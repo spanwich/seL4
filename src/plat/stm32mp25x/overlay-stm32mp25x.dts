@@ -1,0 +1,24 @@
+/*
+ * Copyright 2025, PhD Research Project
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ *
+ * seL4 DTS overlay for Digi CCMP25-DVK (STM32MP255)
+ */
+
+/ {
+	chosen {
+		seL4,elfloader-devices =
+			"serial0",
+			&{/psci},
+			&{/timer};
+
+		seL4,kernel-devices =
+			"serial0",
+			&{/interrupt-controller@4ac10000},
+			&{/timer};
+
+		stdout-path = "/serial@400e0000";
+		serial0 = &{/serial@400e0000};
+	};
+};
