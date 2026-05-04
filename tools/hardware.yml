@@ -223,6 +223,17 @@ devices:
       - index: 0
         kernel: CLINT_PPTR
 
+  # Multikernel-AMP cross-kernel shared pool (4 KiB).
+  # Both kernels declare this same physical region as a kernel-device so
+  # they can each map the same DRAM page into their high-half and use it
+  # for cross-kernel ring buffers / mailboxes.
+  - compatible:
+      - multikernel,shared-pool
+    regions:
+      - index: 0
+        kernel: MULTIKERNEL_SHARED_POOL_PPTR
+        kernel_size: 0x1000
+
   # elfloader rules
   - compatible:
       - arm,psci-0.2
