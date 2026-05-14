@@ -59,3 +59,11 @@ if(KernelSel4ArchX86_64 AND NOT "${KernelX86_64ELFPaddrBase}" STREQUAL "")
     add_compile_definitions(KERNEL_ELF_PADDR_BASE=${KernelX86_64ELFPaddrBase})
     add_compile_definitions(KERNEL_ELF_PADDR_BASE_RAW=${KernelX86_64ELFPaddrBase})
 endif()
+
+# multikernel-AMP Step 3 smoke test: K0 and K1 access a shared paddr
+# (0x30000000) via the kernel's PPTR_BASE window. Patch lives in
+# src/arch/x86/kernel/boot_sys.c (arch HAL, not proof-locked).
+option(KernelMultikernelAMPSharedTest "Enable multikernel-AMP Step 3 shared-memory smoke test" OFF)
+if(KernelMultikernelAMPSharedTest)
+    add_compile_definitions(CONFIG_MULTIKERNEL_AMP_SHARED_TEST=1)
+endif()

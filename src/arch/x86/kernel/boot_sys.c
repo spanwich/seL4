@@ -503,6 +503,37 @@ static BOOT_CODE bool_t try_boot_sys(void)
 
     printf("Booting all finished, dropped to user space\n");
 
+#ifdef CONFIG_MULTIKERNEL_AMP_SHARED_TEST
+    /*
+     * Multikernel-AMP Step 3 smoke test: K0 and K1 each access a shared
+     * physical region at paddr 0x30000000 via the kernel's identity-mapped
+     * physical-memory window (PPTR_BASE = 0xffffff8000000000).
+     *
+     *   K0: write magic A → delay → read back
+     *   K1: delay → read K0's value → write magic B
+     *
+     * Outputs evidence that both kernels can observe each other's writes.
+     * Lives in arch/x86/kernel (R6-allowed boot-time HAL code), not in the
+     * proof-locked src/{object,api,kernel} core. KERNEL_ELF_PADDR_BASE is
+     * a compile-time per-build constant set by KernelX86_64ELFPaddrBase.
+     */
+    {
+        volatile word_t *shared = (volatile word_t *)0xffffff8030000000ULL;
+        word_t my_paddr = (word_t)KERNEL_ELF_PADDR_BASE;
+        if (my_paddr == 0x10000000UL) {
+            *shared = 0xCAFE0000UL;
+            printf("[K0 kernel] wrote 0x%lx to phys 0x30000000\n", (long)*shared);
+            for (volatile uint64_t i = 0; i < 200000000UL; i++);
+            printf("[K0 kernel] now reads 0x%lx from phys 0x30000000\n", (long)*shared);
+        } else if (my_paddr == 0x20000000UL) {
+            for (volatile uint64_t i = 0; i < 100000000UL; i++);
+            printf("[K1 kernel] reads 0x%lx from phys 0x30000000\n", (long)*shared);
+            *shared = 0xBABE0001UL;
+            printf("[K1 kernel] wrote 0x%lx to phys 0x30000000\n", (long)*shared);
+        }
+    }
+#endif
+
     return true;
 }
 
