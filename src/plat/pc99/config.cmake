@@ -45,3 +45,17 @@ config_string(
     DEPENDS "KernelPlatPC99"
     UNQUOTE UNDEF_DISABLED
 )
+
+# multikernel-AMP: override the kernel ELF physical/virtual load address so K0
+# and K1 can coexist at distinct paddrs (default 0x00100000 = 1 MiB).
+# Constraint: must be in [0, 0x40000000) — KERNEL_ELF_BASE must land in PDPT
+# slot 510, asserted by src/arch/x86/64/kernel/vspace.c. The value is injected
+# as a compile definition so both the header (hardware.h:90) and the linker
+# script (src/plat/pc99/linker.lds) pick it up.
+set(KernelX86_64ELFPaddrBase "" CACHE STRING
+    "Override KERNEL_ELF_PADDR_BASE for x86_64 multikernel-AMP builds. \
+    Must be in [0, 0x40000000). Leave empty to use the default 0x00100000.")
+if(KernelSel4ArchX86_64 AND NOT "${KernelX86_64ELFPaddrBase}" STREQUAL "")
+    add_compile_definitions(KERNEL_ELF_PADDR_BASE=${KernelX86_64ELFPaddrBase})
+    add_compile_definitions(KERNEL_ELF_PADDR_BASE_RAW=${KernelX86_64ELFPaddrBase})
+endif()

@@ -86,10 +86,19 @@
  * within the top 2GiB of memory. This is (2^48 - 2 ^ 31) */
 #define PPTR_TOP UL_CONST(0xffffffff80000000)
 
-/* The physical memory address to use for mapping the kernel ELF */
+/* The physical memory address to use for mapping the kernel ELF.
+ * Overridable via CMake (config_string KernelX86_64ELFPaddrBase →
+ * -DKERNEL_ELF_PADDR_BASE=<value>) for multikernel-AMP builds where K0/K1
+ * must coexist in physical memory at distinct addresses. Constraint: must
+ * be in [0, 0x40000000) so KERNEL_ELF_BASE lands in PDPT slot 510 (asserted
+ * by src/arch/x86/64/kernel/vspace.c). */
+#ifndef KERNEL_ELF_PADDR_BASE
 #define KERNEL_ELF_PADDR_BASE UL_CONST(0x00100000)
+#endif
 /* For use by the linker (only integer constants allowed) */
+#ifndef KERNEL_ELF_PADDR_BASE_RAW
 #define KERNEL_ELF_PADDR_BASE_RAW KERNEL_ELF_PADDR_BASE
+#endif
 
 /* Kernel mapping starts directly after the physical memory window */
 #define KERNEL_ELF_BASE (PPTR_TOP + KERNEL_ELF_PADDR_BASE)
