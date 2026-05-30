@@ -505,31 +505,80 @@ static BOOT_CODE bool_t try_boot_sys(void)
 
 #ifdef CONFIG_MULTIKERNEL_AMP_SHARED_TEST
     /*
-     * Multikernel-AMP Step 3 smoke test: K0 and K1 each access a shared
-     * physical region at paddr 0x30000000 via the kernel's identity-mapped
-     * physical-memory window (PPTR_BASE = 0xffffff8000000000).
+     * Multikernel-AMP kernel-direct handshake — generalised to N kernels
+     * (Tasks A/B/C). Every kernel reaches the shared region at paddr
+     * MVPQ_SHARED_BASE (0x90000000) through its identity-mapped physical
+     * window (PPTR_BASE 0xffffff8000000000 → virt 0xffffff8090000000).
      *
-     *   K0: write magic A → delay → read back
-     *   K1: delay → read K0's value → write magic B
+     * Memory map mirrored from
+     *   tools/seL4/elfloader-tool/include/arch-x86/64/mvpq_memmap.h
+     * (kept identical by hand — this tree cannot include that header).
      *
-     * Outputs evidence that both kernels can observe each other's writes.
-     * Lives in arch/x86/kernel (R6-allowed boot-time HAL code), not in the
-     * proof-locked src/{object,api,kernel} core. KERNEL_ELF_PADDR_BASE is
-     * a compile-time per-build constant set by KernelX86_64ELFPaddrBase.
+     *   slot[0]      : K0's token (every Ki spins until it is non-zero,
+     *                  proving Ki observes K0's write — K0↔Ki one way)
+     *   slot[kid]    : Ki's reply token (K0 reads them back — Ki↔K0)
+     *   bench word   : K0 times a write+read round here with RDTSC to get
+     *                  the "PDPT-510 direct" cost reported for Task B.
+     *
+     * Lives in arch/x86/kernel (R6-allowed boot HAL), not the proof-locked
+     * src/{object,api,kernel} core. KERNEL_ELF_PADDR_BASE is a per-build
+     * compile constant set via KernelX86_64ELFPaddrBase.
      */
     {
-        volatile word_t *shared = (volatile word_t *)0xffffff8030000000ULL;
+        /* MUST match mvpq_memmap.h: KLO_BASE0 / KLO_STRIDE / SHARED_BASE. */
+        const word_t MVPQ_KLO_BASE0  = 0x01000000UL;
+        const word_t MVPQ_KLO_STRIDE = 0x08000000UL;
+        volatile word_t *shared = (volatile word_t *)0xffffff8090000000ULL;
+        volatile word_t *slot   = shared;            /* slot[0..7]        */
+        volatile word_t *bench  = shared + 64;       /* RDTSC scratch     */
+
         word_t my_paddr = (word_t)KERNEL_ELF_PADDR_BASE;
-        if (my_paddr == 0x10000000UL) {
-            *shared = 0xCAFE0000UL;
-            printf("[K0 kernel] wrote 0x%lx to phys 0x30000000\n", (long)*shared);
-            for (volatile uint64_t i = 0; i < 200000000UL; i++);
-            printf("[K0 kernel] now reads 0x%lx from phys 0x30000000\n", (long)*shared);
-        } else if (my_paddr == 0x20000000UL) {
+        word_t kid = (my_paddr - MVPQ_KLO_BASE0) / MVPQ_KLO_STRIDE;
+
+        if (kid == 0) {
+            /* PDPT-510 direct latency. Two figures:
+             *  - cold: one rdtsc-serialised write+read (first touch — TLB
+             *    + cache miss + measurement overhead dominate);
+             *  - warm: average over 4096 write+read rounds after warm-up,
+             *    comparable to the warm user-space ring round-trip. */
+            uint32_t a0, d0, a1, d1;
+            asm volatile("lfence; rdtsc" : "=a"(a0), "=d"(d0));
+            *bench = 0xCAFE0000UL;
+            word_t seen = *bench;
+            asm volatile("lfence; rdtsc" : "=a"(a1), "=d"(d1));
+            uint64_t t0 = ((uint64_t)d0 << 32) | a0;
+            uint64_t t1 = ((uint64_t)d1 << 32) | a1;
+            printf("[K0 kernel] PDPT-510 direct write+read (cold) = %ld "
+                   "cycles (val 0x%lx)\n", (long)(t1 - t0), (long)seen);
+
+            for (int w = 0; w < 100000; w++) { *bench = (word_t)w; seen = *bench; }
+            const long ITERS = 1000000;
+            asm volatile("lfence; rdtsc" : "=a"(a0), "=d"(d0));
+            for (long it = 0; it < ITERS; it++) { *bench = (word_t)it; seen = *bench; }
+            asm volatile("lfence; rdtsc" : "=a"(a1), "=d"(d1));
+            t0 = ((uint64_t)d0 << 32) | a0;
+            t1 = ((uint64_t)d1 << 32) | a1;
+            printf("[K0 kernel] PDPT-510 direct write+read (warm) = %ld total "
+                   "/ %ld rounds = ~%ld cycles/round\n",
+                   (long)(t1 - t0), ITERS, (long)((t1 - t0) / ITERS));
+            (void)seen;
+
+            *slot = 0xCAFE0000UL;
+            printf("[K0 kernel] wrote 0x%lx to shared slot[0]\n", (long)*slot);
+            for (volatile uint64_t i = 0; i < 400000000UL; i++);
+            for (word_t i = 1; i < 8; i++) {
+                if (slot[i]) {
+                    printf("[K0 kernel] round-trip K0<->K%ld ok: slot[%ld]"
+                           " = 0x%lx\n", (long)i, (long)i, (long)slot[i]);
+                }
+            }
+        } else {
             for (volatile uint64_t i = 0; i < 100000000UL; i++);
-            printf("[K1 kernel] reads 0x%lx from phys 0x30000000\n", (long)*shared);
-            *shared = 0xBABE0001UL;
-            printf("[K1 kernel] wrote 0x%lx to phys 0x30000000\n", (long)*shared);
+            printf("[K%ld kernel] reads 0x%lx from K0 (shared slot[0])\n",
+                   (long)kid, (long)slot[0]);
+            slot[kid] = 0xBABE0000UL | kid;
+            printf("[K%ld kernel] wrote 0x%lx to shared slot[%ld]\n",
+                   (long)kid, (long)slot[kid], (long)kid);
         }
     }
 #endif
