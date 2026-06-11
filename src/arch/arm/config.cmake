@@ -81,6 +81,15 @@ config_option(
     "KernelArmCortexA15 OR KernelArmCortexA35 OR KernelArmCortexA57 OR KernelArmCortexA53 OR KernelArmCortexA55 OR KernelArmCortexA72"
 )
 
+config_option(
+  KernelArmPreparedSecondaryBoot
+  ARM_PREPARED_SECONDARY_BOOT
+  "Boot this ARM kernel as a prepared secondary image. The handoff provider must make the kernel, user image, DTB, and boot metadata coherent before entry; set/way cache maintenance is disabled."
+  DEFAULT OFF
+  DEPENDS "KernelSel4ArchAarch64"
+  DEFAULT_DISABLED OFF
+)
+
 config_option(KernelArmGicV3 ARM_GIC_V3_SUPPORT "Build support for GICv3" DEFAULT OFF)
 
 if(KernelArmPASizeBits40 AND ARM_HYPERVISOR_SUPPORT)

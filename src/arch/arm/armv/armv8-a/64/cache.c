@@ -8,12 +8,24 @@
 
 static inline void cleanByWSL(word_t wsl)
 {
+#ifdef CONFIG_ARM_PREPARED_SECONDARY_BOOT
+    (void)wsl;
+    dsb();
+    isb();
+#else
     asm volatile("dc csw, %0" : : "r"(wsl));
+#endif
 }
 
 static inline void cleanInvalidateByWSL(word_t wsl)
 {
+#ifdef CONFIG_ARM_PREPARED_SECONDARY_BOOT
+    (void)wsl;
+    dsb();
+    isb();
+#else
     asm volatile("dc cisw, %0" : : "r"(wsl));
+#endif
 }
 
 static inline word_t readCLID(void)
