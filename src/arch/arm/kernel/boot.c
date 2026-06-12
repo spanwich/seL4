@@ -642,9 +642,6 @@ BOOT_CODE VISIBLE void init_kernel(
 {
     bool_t result;
 
-#ifdef CONFIG_ARM_PREPARED_SECONDARY_BOOT
-    printf("prepared-secondary boot: set/way cache maintenance disabled\n");
-#endif
 
 #ifdef ENABLE_SMP_SUPPORT
     /* we assume there exists a cpu with id 0 and will use it for bootstrapping */
