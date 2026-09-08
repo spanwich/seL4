@@ -398,6 +398,10 @@ static BOOT_CODE bool_t try_boot_sys(void)
            (paddr_t)_start
           );
 
+    /* Only slot zero owns the shared interrupt controllers in AMP mode. */
+#ifdef CONFIG_OPTIPLEX_IDLE
+    if (KERNEL_ELF_PADDR_BASE == 0x01000000) {
+#endif
     /* remapping legacy IRQs to their correct vectors */
     pic_remap_irqs(IRQ_INT_OFFSET);
     if (config_set(CONFIG_IRQ_IOAPIC)) {
@@ -406,6 +410,9 @@ static BOOT_CODE bool_t try_boot_sys(void)
         pic_disable();
     }
 
+#ifdef CONFIG_OPTIPLEX_IDLE
+    }
+#endif
     /* validate the ACPI table */
     if (!acpi_validate_rsdp(&boot_state.acpi_rsdp)) {
         return false;
@@ -432,6 +439,11 @@ static BOOT_CODE bool_t try_boot_sys(void)
     /* query available CPUs from ACPI */
     boot_state.num_cpus = acpi_madt_scan(&boot_state.acpi_rsdp, boot_state.cpus, &boot_state.num_ioapic,
                                          boot_state.ioapic_paddr);
+#ifdef CONFIG_OPTIPLEX_IDLE
+    /* Each image is already executing on its assigned CPU, including APs. */
+    boot_state.cpus[0] = x86_cpuid_ebx(1, 0) >> 24;
+    boot_state.num_cpus = 1;
+#endif
     if (boot_state.num_cpus == 0) {
         printf("No CPUs detected\n");
         return false;
@@ -491,6 +503,9 @@ static BOOT_CODE bool_t try_boot_sys(void)
     }
 
     if (config_set(CONFIG_IRQ_IOAPIC)) {
+#ifdef CONFIG_OPTIPLEX_IDLE
+        if (KERNEL_ELF_PADDR_BASE == 0x01000000)
+#endif
         ioapic_init(1, boot_state.cpus, boot_state.num_ioapic);
     }
 
@@ -733,4 +748,3 @@ BOOT_CODE VISIBLE void boot_sys(
     schedule();
     activateThread();
 }
-

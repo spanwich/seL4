@@ -45,3 +45,15 @@ config_string(
     DEPENDS "KernelPlatPC99"
     UNQUOTE UNDEF_DISABLED
 )
+set(KernelX86_64ELFPaddrBase "" CACHE STRING "Independent kernel ELF physical base")
+if(KernelSel4ArchX86_64 AND NOT "${KernelX86_64ELFPaddrBase}" STREQUAL "")
+    add_compile_definitions(KERNEL_ELF_PADDR_BASE=${KernelX86_64ELFPaddrBase}
+                            KERNEL_ELF_PADDR_BASE_RAW=${KernelX86_64ELFPaddrBase})
+endif()
+option(KernelOptiplexIdle "Independent unicore hardware idle experiment" OFF)
+if(KernelOptiplexIdle)
+    if(NOT KernelSel4ArchX86_64 OR NOT KernelMaxNumNodes EQUAL 1)
+        message(FATAL_ERROR "Optiplex idle requires x86_64 unicore kernels")
+    endif()
+    add_compile_definitions(CONFIG_OPTIPLEX_IDLE=1)
+endif()

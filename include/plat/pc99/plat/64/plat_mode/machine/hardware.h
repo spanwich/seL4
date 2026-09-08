@@ -87,9 +87,13 @@
 #define PPTR_TOP UL_CONST(0xffffffff80000000)
 
 /* The physical memory address to use for mapping the kernel ELF */
+#ifndef KERNEL_ELF_PADDR_BASE
 #define KERNEL_ELF_PADDR_BASE UL_CONST(0x00100000)
+#endif
 /* For use by the linker (only integer constants allowed) */
+#ifndef KERNEL_ELF_PADDR_BASE_RAW
 #define KERNEL_ELF_PADDR_BASE_RAW KERNEL_ELF_PADDR_BASE
+#endif
 
 /* Kernel mapping starts directly after the physical memory window */
 #define KERNEL_ELF_BASE (PPTR_TOP + KERNEL_ELF_PADDR_BASE)
@@ -121,4 +125,3 @@ compile_assert(user_top_tlbbitmap_no_overlap, GET_PML4_INDEX(USER_TOP) != GET_PM
 #endif
 
 #endif /* __ASSEMBLER__ */
-
