@@ -1,0 +1,19 @@
+/*
+ * Copyright 2026, PhD Research Project
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ */
+
+/ {
+	chosen {
+		seL4,elfloader-devices =
+		    &{/tmfifo@800a20},
+		    &{/psci},
+		    &{/timer};
+		seL4,kernel-devices =
+		    &{/tmfifo@800a20},
+		    &{/interrupt-controller@12000000},
+		    &{/timer};
+		stdout-path = "/tmfifo@800a20";
+	};
+};

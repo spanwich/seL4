@@ -177,6 +177,21 @@ devices:
       - index: 0
         kernel: WDT1_PPTR
         user: true
+  # NVIDIA BlueField TMFIFO used by the host RShim console.
+  - compatible:
+      - mellanox,bluefield-tmfifo
+    regions:
+      - index: 0
+        kernel: TMFIFO_RX_PPTR
+        macro: CONFIG_PRINTING
+        user: true
+        kernel_size: 0x1000
+      - index: 1
+        kernel: TMFIFO_TX_PPTR
+        macro: CONFIG_PRINTING
+        user: true
+        kernel_size: 0x1000
+
   # various serial consoles (`grep <compatible> serial/*`)
   - compatible:
       - amlogic,meson-gx-uart

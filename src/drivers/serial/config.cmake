@@ -13,6 +13,7 @@ register_driver(
     CFILES "bcm2835-aux-uart.c"
 )
 register_driver(compatibility_strings "arm,pl011" PREFIX src/drivers/serial CFILES "pl011.c")
+register_driver(compatibility_strings "mellanox,bluefield-tmfifo" PREFIX src/drivers/serial CFILES "mlxbf-tmfifo.c")
 register_driver(
     compatibility_strings "nvidia,tegra20-uart;ti,omap3-uart;snps,dw-apb-uart"
     PREFIX src/drivers/serial
