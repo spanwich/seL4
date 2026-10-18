@@ -109,6 +109,26 @@ BOOT_CODE static bool_t arch_init_freemem(p_region_t ui_p_reg,
         reserve_region(ui_p_reg);
     }
 
+    /* Foreign memory from the device tree (e.g. another kernel's RAM). Keep
+     * reserved[] sorted by inserting each region in place. */
+    for (word_t i = 0; i < ARRAY_SIZE(dt_reserved_p_regs); i++) {
+        if (dt_reserved_p_regs[i].start == dt_reserved_p_regs[i].end) {
+            continue;
+        }
+        if (index >= ARRAY_SIZE(reserved)) {
+            printf("ERROR: no slot to add foreign memory to reserved regions\n");
+            return false;
+        }
+        region_t reg = paddr_to_pptr_reg(dt_reserved_p_regs[i]);
+        int pos = index;
+        while (pos > 0 && reserved[pos - 1].start > reg.start) {
+            reserved[pos] = reserved[pos - 1];
+            pos--;
+        }
+        reserved[pos] = reg;
+        index++;
+    }
+
     /* avail_p_regs comes from the auto-generated code */
     return init_freemem(ARRAY_SIZE(avail_p_regs), avail_p_regs,
                         index, reserved,

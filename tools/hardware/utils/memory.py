@@ -67,6 +67,20 @@ def parse_reserved_regions(node: WrappedNode) -> Set[Region]:
     return ret
 
 
+def get_foreign_memory(tree: FdtParser) -> List[Region]:
+    ''' Return the /reserved-memory regions marked "sel4,foreign-memory",
+        sorted. The kernel reserves these so that they become neither free
+        memory nor device untypeds. '''
+    node = tree.get_path('/reserved-memory')
+    if node is None:
+        return []
+    ret = set()
+    for child in node:
+        if child.has_prop('reg') and child.has_prop('sel4,foreign-memory'):
+            ret.update(child.get_regions())
+    return sorted(ret, key=lambda r: r.base)
+
+
 def reserve_regions(regions: Set[Region], reserved: Set[Region]) -> Set[Region]:
     ''' Given a set of regions, and a set of reserved regions,
         return a new set that is the first set of regions minus the second set. '''

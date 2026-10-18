@@ -126,6 +126,24 @@ static const p_region_t BOOT_RODATA avail_p_regs[] = {
     {% endfor %}
 };
 
+/* Ranges this kernel must never hand out, as RAM or as device untypeds
+ * (/reserved-memory children marked "sel4,foreign-memory"; e.g. another
+ * kernel's RAM in a multikernel system). A zero-size entry keeps the array
+ * non-empty for the verification C parser.
+ */
+#define NUM_DT_RESERVED_P_REGS {{ max(1, foreign_memory|length) }}
+static const p_region_t BOOT_RODATA dt_reserved_p_regs[] = {
+    {% for reg in foreign_memory %}
+    /* {{ reg.owner.path }} */
+    {
+        .start = {{ "0x{:x}".format(reg.base) }},
+        .end   = {{ "0x{:x}".format(reg.base + reg.size) }}
+    },
+    {% else %}
+    { .start = 0, .end = 0 },
+    {% endfor %}
+};
+
 #endif /* !__ASSEMBLER__ */
 
 '''
@@ -187,7 +205,7 @@ def get_interrupts(tree: FdtParser, hw_yaml: HardwareYaml) -> List:
 
 def create_c_header_file(config, kernel_irqs: List, kernel_macros: Dict,
                          kernel_regions: List, physBase: int, physical_memory,
-                         outputStream):
+                         outputStream, foreign_memory=()):
 
     jinja_env = jinja2.Environment(loader=jinja2.BaseLoader, trim_blocks=True,
                                    lstrip_blocks=True)
@@ -201,7 +219,8 @@ def create_c_header_file(config, kernel_irqs: List, kernel_macros: Dict,
             'kernel_macros': kernel_macros,
             'kernel_regions': kernel_regions,
             'physBase': physBase,
-            'physical_memory': physical_memory})
+            'physical_memory': physical_memory,
+            'foreign_memory': foreign_memory})
     data = template.render(template_args)
 
     with outputStream:
@@ -222,7 +241,8 @@ def run(tree: FdtParser, hw_yaml: HardwareYaml, config: Config, kernel_config_di
         kernel_regions,
         physBase,
         physical_memory,
-        args.header_out)
+        args.header_out,
+        hardware.utils.memory.get_foreign_memory(tree))
 
 
 def add_args(parser):

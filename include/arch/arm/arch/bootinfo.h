@@ -23,8 +23,9 @@
  * +1 for device tree binary
  * +1 for user image.
  * +1 for each the MODE_RESERVED region, there might be none
+ * +1 for each foreign-memory region from the device tree
  */
-#define NUM_RESERVED_REGIONS (3 + MODE_RESERVED)
+#define NUM_RESERVED_REGIONS (3 + MODE_RESERVED + NUM_DT_RESERVED_P_REGS)
 
 
 /* The maximum number of reserved regions is:
